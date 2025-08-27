@@ -21,12 +21,9 @@ struct ContentView: View {
                         }
                     }
                 }
-                .onDelete(perform: store.deleteLists)
-                .onMove(perform: store.moveLists)
             }
             .navigationTitle("My Checklists")
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) { EditButton() }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showingNewListSheet = true }) {
                         Image(systemName: "plus")
@@ -67,4 +64,3 @@ struct ContentView_Previews: PreviewProvider {
         ContentView()
     }
 }
-
