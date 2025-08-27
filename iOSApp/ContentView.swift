@@ -1,19 +1,34 @@
 import SwiftUI
 
+struct Field: Identifiable, Hashable {
+    var id: UUID = UUID()
+    var name: String
+    var isChecked: Bool = false
+}
+
 struct ContentView: View {
-    let engine = ChecklistEngine()
+    @State private var fields: [Field] = [
+        Field(name: "First Field"),
+        Field(name: "Second Field"),
+        Field(name: "Third Field")
+    ]
 
     var body: some View {
-        VStack(spacing: 16) {
-            Text("Checklist iOS")
-                .font(.largeTitle)
-                .bold()
-            Text(engine.welcomeMessage(arguments: []))
-                .font(.body)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
+        NavigationView {
+            List {
+                ForEach($fields) { $field in
+                    Toggle(field.name, isOn: $field.isChecked)
+                }
+            }
+            .navigationTitle("Checklist")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Text("Checked: \(fields.filter { $0.isChecked }.count)/\(fields.count)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+            }
         }
-        .padding()
     }
 }
 
