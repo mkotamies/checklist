@@ -3,6 +3,13 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var store = ChecklistStore()
     @State private var newFieldName: String = ""
+    @State private var showCompletedAlert: Bool = false
+
+    private var allChecked: Bool {
+        !store.fields.isEmpty && store.fields.allSatisfy { $0.isChecked }
+    }
+
+    private var checkedCount: Int { store.fields.filter { $0.isChecked }.count }
 
     var body: some View {
         NavigationView {
@@ -33,6 +40,12 @@ struct ContentView: View {
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
+            }
+            .alert(isPresented: $showCompletedAlert) {
+                Alert(title: Text("Checklist Completed"), message: Text("All items are checked."), dismissButton: .default(Text("OK")))
+            }
+            .onChange(of: checkedCount) { _ in
+                if allChecked { showCompletedAlert = true }
             }
         }
     }
