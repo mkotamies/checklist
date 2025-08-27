@@ -1,34 +1,45 @@
 import SwiftUI
 
-struct Field: Identifiable, Hashable {
-    var id: UUID = UUID()
-    var name: String
-    var isChecked: Bool = false
-}
-
 struct ContentView: View {
-    @State private var fields: [Field] = [
-        Field(name: "First Field"),
-        Field(name: "Second Field"),
-        Field(name: "Third Field")
-    ]
+    @StateObject private var store = ChecklistStore()
+    @State private var newFieldName: String = ""
 
     var body: some View {
         NavigationView {
-            List {
-                ForEach($fields) { $field in
-                    Toggle(field.name, isOn: $field.isChecked)
+            VStack(spacing: 8) {
+                HStack {
+                    TextField("Add new field", text: $newFieldName, onCommit: addField)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                    Button("Add", action: addField)
+                        .disabled(newFieldName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                .padding([.horizontal, .top])
+
+                List {
+                    ForEach($store.fields) { $field in
+                        Toggle(field.name, isOn: $field.isChecked)
+                    }
+                    .onDelete(perform: store.delete)
+                    .onMove(perform: store.move)
                 }
             }
             .navigationTitle("Checklist")
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    EditButton()
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Text("Checked: \(fields.filter { $0.isChecked }.count)/\(fields.count)")
+                    Text("Checked: \(store.fields.filter { $0.isChecked }.count)/\(store.fields.count)")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
             }
         }
+    }
+
+    private func addField() {
+        store.addField(name: newFieldName)
+        newFieldName = ""
     }
 }
 
