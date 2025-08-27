@@ -1,0 +1,14 @@
+# SwiftPM
+.build/
+.swiftpm/
+
+# Xcode-related (if generated locally)
+DerivedData/
+/*.xcodeproj
+!ChecklistApp.xcodeproj
+xcuserdata/
+
+# macOS
+.DS_Store
+
+TODO
