@@ -6,6 +6,9 @@ struct ChecklistDetailView: View {
 
     @State private var newFieldName: String = ""
     @State private var showCompletedAlert: Bool = false
+    @Environment(\.editMode) private var editMode
+
+    private var isEditing: Bool { (editMode?.wrappedValue.isEditing) == true }
 
     private var checklistIndex: Int? {
         store.lists.firstIndex { $0.id == listID }
@@ -31,12 +34,14 @@ struct ChecklistDetailView: View {
         Group {
             if let list = listBinding {
                 List {
-                    Section(header: Text("Add Field")) {
-                        HStack {
-                            TextField("New field name", text: $newFieldName, onCommit: addField)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                            Button("Add", action: addField)
-                                .disabled(newFieldName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    if isEditing {
+                        Section(header: Text("Add Field")) {
+                            HStack {
+                                TextField("New field name", text: $newFieldName, onCommit: addField)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                Button("Add", action: addField)
+                                    .disabled(newFieldName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            }
                         }
                     }
 
@@ -84,4 +89,3 @@ struct ChecklistDetailView: View {
         newFieldName = ""
     }
 }
-
