@@ -7,53 +7,63 @@ struct Field: Identifiable, Codable, Hashable {
     var isChecked: Bool = false
 }
 
+struct Checklist: Identifiable, Codable, Hashable {
+    var id: UUID = UUID()
+    var name: String
+    var fields: [Field] = []
+}
+
 final class ChecklistStore: ObservableObject {
-    @Published var fields: [Field] = [] {
+    @Published var lists: [Checklist] = [] {
         didSet { save() }
     }
 
     private let fileURL: URL
 
-    init(filename: String = "checklist.json") {
+    init(filename: String = "checklists.json") {
         let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         self.fileURL = dir.appendingPathComponent(filename)
         load()
     }
 
-    func addField(name: String) {
+    // MARK: - List operations
+    func addList(name: String) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        guard !fields.contains(where: { $0.name.caseInsensitiveCompare(trimmed) == .orderedSame }) else { return }
-        fields.append(Field(name: trimmed))
+        lists.append(Checklist(name: trimmed))
     }
 
-    func delete(at offsets: IndexSet) {
-        fields.remove(atOffsets: offsets)
+    func deleteLists(at offsets: IndexSet) {
+        lists.remove(atOffsets: offsets)
     }
 
-    func move(from source: IndexSet, to destination: Int) {
-        fields.move(fromOffsets: source, toOffset: destination)
+    func moveLists(from source: IndexSet, to destination: Int) {
+        lists.move(fromOffsets: source, toOffset: destination)
     }
 
+    // MARK: - Persistence
     func load() {
         do {
             let data = try Data(contentsOf: fileURL)
-            let decoded = try JSONDecoder().decode([Field].self, from: data)
-            self.fields = decoded
+            let decoded = try JSONDecoder().decode([Checklist].self, from: data)
+            self.lists = decoded
         } catch {
-            // If no file yet, start empty
-            self.fields = []
+            // Migration path: try to read legacy single-list file format ([Field])
+            let legacyURL = fileURL.deletingLastPathComponent().appendingPathComponent("checklist.json")
+            if let legacyData = try? Data(contentsOf: legacyURL), let legacyFields = try? JSONDecoder().decode([Field].self, from: legacyData) {
+                self.lists = [Checklist(name: "My Checklist", fields: legacyFields)]
+            } else {
+                self.lists = []
+            }
         }
     }
 
     func save() {
         do {
-            let data = try JSONEncoder().encode(fields)
+            let data = try JSONEncoder().encode(lists)
             try data.write(to: fileURL, options: [.atomic])
         } catch {
-            // In a simple app, we silently ignore write errors
-            // Could add logging here if desired
+            // Ignored for simplicity
         }
     }
 }
-
