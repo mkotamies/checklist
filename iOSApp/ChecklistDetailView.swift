@@ -6,9 +6,9 @@ struct ChecklistDetailView: View {
 
     @State private var newFieldName: String = ""
     @State private var showCompletedAlert: Bool = false
-    @Environment(\.editMode) private var editMode
+    @State private var editMode: EditMode = .inactive
 
-    private var isEditing: Bool { (editMode?.wrappedValue.isEditing) == true }
+    private var isEditing: Bool { editMode.isEditing }
 
     private var checklistIndex: Int? {
         store.lists.firstIndex { $0.id == listID }
@@ -35,6 +35,9 @@ struct ChecklistDetailView: View {
             if let list = listBinding {
                 List {
                     if isEditing {
+                        Section(header: Text("List Name")) {
+                            TextField("Name", text: list.name)
+                        }
                         Section(header: Text("Add Field")) {
                             HStack {
                                 TextField("New field name", text: $newFieldName, onCommit: addField)
@@ -47,7 +50,13 @@ struct ChecklistDetailView: View {
 
                     Section {
                         ForEach(list.fields) { $field in
-                            Toggle(field.name, isOn: $field.isChecked)
+                            if isEditing {
+                                Toggle(isOn: $field.isChecked) {
+                                    TextField("Field name", text: $field.name)
+                                }
+                            } else {
+                                Toggle(field.name, isOn: $field.isChecked)
+                            }
                         }
                         .onDelete { offsets in
                             list.wrappedValue.fields.remove(atOffsets: offsets)
@@ -75,6 +84,7 @@ struct ChecklistDetailView: View {
                 .onChange(of: checkedCount) { _ in
                     if allChecked { showCompletedAlert = true }
                 }
+                .environment(\.editMode, $editMode)
             } else {
                 Text("List not found").foregroundColor(.secondary)
             }
