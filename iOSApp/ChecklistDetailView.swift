@@ -7,6 +7,7 @@ struct ChecklistDetailView: View {
     @State private var newFieldName: String = ""
     @State private var showCompletedAlert: Bool = false
     @State private var editMode: EditMode = .inactive
+    @State private var lastCheckedCount: Int = 0
 
     private var isEditing: Bool { editMode.isEditing }
 
@@ -78,11 +79,19 @@ struct ChecklistDetailView: View {
                             .foregroundColor(.secondary)
                     }
                 }
-                .alert(isPresented: $showCompletedAlert) {
+                .alert(isPresented: Binding(get: { !isEditing && showCompletedAlert }, set: { showCompletedAlert = $0 })) {
                     Alert(title: Text("Checklist Completed"), message: Text("All items are checked."), dismissButton: .default(Text("OK")))
                 }
-                .onChange(of: checkedCount) { _ in
-                    if allChecked { showCompletedAlert = true }
+                .onAppear { lastCheckedCount = checkedCount }
+                .onChange(of: checkedCount) { newCount in
+                    // Only show when not editing and the number of checked items increased
+                    if !isEditing && allChecked && newCount > lastCheckedCount {
+                        showCompletedAlert = true
+                    }
+                    lastCheckedCount = newCount
+                }
+                .onChange(of: isEditing) { editing in
+                    if editing { showCompletedAlert = false }
                 }
                 .environment(\.editMode, $editMode)
             } else {
