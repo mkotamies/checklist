@@ -52,9 +52,7 @@ struct ChecklistDetailView: View {
                     Section {
                         ForEach(list.fields) { $field in
                             if isEditing {
-                                Toggle(isOn: $field.isChecked) {
-                                    TextField("Field name", text: $field.name)
-                                }
+                                TextField("Field name", text: $field.name)
                             } else {
                                 Toggle(field.name, isOn: $field.isChecked)
                             }
