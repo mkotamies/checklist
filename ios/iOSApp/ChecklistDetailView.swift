@@ -34,7 +34,11 @@ struct ChecklistDetailView: View {
     var body: some View {
         Group {
             if let list = listBinding {
-                List {
+                ZStack {
+                    AppTheme.backgroundGradient
+                        .ignoresSafeArea()
+
+                    List {
                     if isEditing {
                         Section(header: Text("List Name")) {
                             TextField("Name", text: list.name)
@@ -54,7 +58,12 @@ struct ChecklistDetailView: View {
                             if isEditing {
                                 TextField("Field name", text: $field.name)
                             } else {
-                                Toggle(field.name, isOn: $field.isChecked)
+                                Toggle(isOn: $field.isChecked) {
+                                    Text(field.name)
+                                }
+                                .toggleStyle(TileToggleStyle())
+                                .listRowBackground(Color.clear)
+                                .listRowSeparatorHiddenCompat()
                             }
                         }
                         .onDelete { offsets in
@@ -64,11 +73,28 @@ struct ChecklistDetailView: View {
                             list.wrappedValue.fields.move(fromOffsets: from, toOffset: to)
                         }
                     }
+                    }
+                    .listStyle(.plain)
+                    .scrollContentBackgroundHidden()
                 }
-                .listStyle(InsetGroupedListStyle())
-                .navigationTitle(list.wrappedValue.name)
+                .navigationTitle("")
+                .navigationBarTitleDisplayMode(.inline)
+                .tintIfAvailable(AppTheme.navItemColor)
+                .accentColor(AppTheme.navItemColor)
                 .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) { EditButton() }
+                    ToolbarItem(placement: .principal) {
+                        Text(list.wrappedValue.name)
+                            .font(.system(size: 22, weight: .regular))
+                            .foregroundColor(.black)
+                    }
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button(action: {
+                            editMode = isEditing ? .inactive : .active
+                        }) {
+                            Text(isEditing ? "Done" : "Edit")
+                                .foregroundColor(AppTheme.navItemColor)
+                        }
+                    }
                     ToolbarItem(placement: .navigationBarTrailing) {
                         let done = checkedCount
                         let total = list.wrappedValue.fields.count
@@ -92,6 +118,10 @@ struct ChecklistDetailView: View {
                     if editing { showCompletedAlert = false }
                 }
                 .environment(\.editMode, $editMode)
+                .onAppear {
+                    UINavigationBar.appearance().tintColor = AppTheme.navItemUIColor
+                    UIBarButtonItem.appearance().tintColor = AppTheme.navItemUIColor
+                }
             } else {
                 Text("List not found").foregroundColor(.secondary)
             }
