@@ -1,14 +1,14 @@
-import Foundation
 import Combine
+import Foundation
 
 struct Field: Identifiable, Codable, Hashable {
-    var id: UUID = UUID()
+    var id: UUID = .init()
     var name: String
     var isChecked: Bool = false
 }
 
 struct Checklist: Identifiable, Codable, Hashable {
-    var id: UUID = UUID()
+    var id: UUID = .init()
     var name: String
     var fields: [Field] = []
 }
@@ -22,11 +22,12 @@ final class ChecklistStore: ObservableObject {
 
     init(filename: String = "checklists.json") {
         let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        self.fileURL = dir.appendingPathComponent(filename)
+        fileURL = dir.appendingPathComponent(filename)
         load()
     }
 
     // MARK: - List operations
+
     func addList(name: String) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -42,18 +43,19 @@ final class ChecklistStore: ObservableObject {
     }
 
     // MARK: - Persistence
+
     func load() {
         do {
             let data = try Data(contentsOf: fileURL)
             let decoded = try JSONDecoder().decode([Checklist].self, from: data)
-            self.lists = decoded
+            lists = decoded
         } catch {
             // Migration path: try to read legacy single-list file format ([Field])
             let legacyURL = fileURL.deletingLastPathComponent().appendingPathComponent("checklist.json")
             if let legacyData = try? Data(contentsOf: legacyURL), let legacyFields = try? JSONDecoder().decode([Field].self, from: legacyData) {
-                self.lists = [Checklist(name: "My Checklist", fields: legacyFields)]
+                lists = [Checklist(name: "My Checklist", fields: legacyFields)]
             } else {
-                self.lists = []
+                lists = []
             }
         }
     }

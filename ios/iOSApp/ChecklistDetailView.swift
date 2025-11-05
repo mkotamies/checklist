@@ -23,12 +23,12 @@ struct ChecklistDetailView: View {
     private var allChecked: Bool {
         guard let idx = checklistIndex else { return false }
         let fields = store.lists[idx].fields
-        return !fields.isEmpty && fields.allSatisfy { $0.isChecked }
+        return !fields.isEmpty && fields.allSatisfy(\.isChecked)
     }
 
     private var checkedCount: Int {
         guard let idx = checklistIndex else { return 0 }
-        return store.lists[idx].fields.filter { $0.isChecked }.count
+        return store.lists[idx].fields.count(where: { $0.isChecked })
     }
 
     var body: some View {
@@ -39,40 +39,40 @@ struct ChecklistDetailView: View {
                         .ignoresSafeArea()
 
                     List {
-                    if isEditing {
-                        Section(header: Text("List Name")) {
-                            TextField("Name", text: list.name)
-                        }
-                        Section(header: Text("Add Field")) {
-                            HStack {
-                                TextField("New field name", text: $newFieldName, onCommit: addField)
-                                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                                Button("Add", action: addField)
-                                    .disabled(newFieldName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        if isEditing {
+                            Section(header: Text("List Name")) {
+                                TextField("Name", text: list.name)
                             }
-                        }
-                    }
-
-                    Section {
-                        ForEach(list.fields) { $field in
-                            if isEditing {
-                                TextField("Field name", text: $field.name)
-                            } else {
-                                Toggle(isOn: $field.isChecked) {
-                                    Text(field.name)
+                            Section(header: Text("Add Field")) {
+                                HStack {
+                                    TextField("New field name", text: $newFieldName, onCommit: addField)
+                                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    Button("Add", action: addField)
+                                        .disabled(newFieldName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                                 }
-                                .toggleStyle(TileToggleStyle())
-                                .listRowBackground(Color.clear)
-                                .listRowSeparatorHiddenCompat()
                             }
                         }
-                        .onDelete { offsets in
-                            list.wrappedValue.fields.remove(atOffsets: offsets)
+
+                        Section {
+                            ForEach(list.fields) { $field in
+                                if isEditing {
+                                    TextField("Field name", text: $field.name)
+                                } else {
+                                    Toggle(isOn: $field.isChecked) {
+                                        Text(field.name)
+                                    }
+                                    .toggleStyle(TileToggleStyle())
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparatorHiddenCompat()
+                                }
+                            }
+                            .onDelete { offsets in
+                                list.wrappedValue.fields.remove(atOffsets: offsets)
+                            }
+                            .onMove { from, to in
+                                list.wrappedValue.fields.move(fromOffsets: from, toOffset: to)
+                            }
                         }
-                        .onMove { from, to in
-                            list.wrappedValue.fields.move(fromOffsets: from, toOffset: to)
-                        }
-                    }
                     }
                     .listStyle(.plain)
                     .scrollContentBackgroundHidden()
@@ -109,7 +109,7 @@ struct ChecklistDetailView: View {
                 .onAppear { lastCheckedCount = checkedCount }
                 .onChange(of: checkedCount) { newCount in
                     // Only show when not editing and the number of checked items increased
-                    if !isEditing && allChecked && newCount > lastCheckedCount {
+                    if !isEditing, allChecked, newCount > lastCheckedCount {
                         showCompletedAlert = true
                     }
                     lastCheckedCount = newCount

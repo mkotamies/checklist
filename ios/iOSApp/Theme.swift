@@ -2,14 +2,14 @@ import SwiftUI
 import UIKit
 
 // Simple theme and helpers for styling
-struct AppTheme {
+enum AppTheme {
     // Background gradient: bottom -> top
     static let backgroundBottom = Color(hex: 0xD7ECE2)
     static let backgroundTop = Color(hex: 0xD3EDDB)
     static let backgroundGradient = LinearGradient(
         gradient: Gradient(colors: [backgroundBottom, backgroundTop]),
         startPoint: .bottom,
-        endPoint: .top
+        endPoint: .top,
     )
     static let tileBackground = Color.white
     static let tileText = Color.black
@@ -40,7 +40,7 @@ struct TileModifier: ViewModifier {
 }
 
 extension View {
-    func tileStyle() -> some View { self.modifier(TileModifier()) }
+    func tileStyle() -> some View { modifier(TileModifier()) }
 }
 
 extension View {
@@ -49,7 +49,7 @@ extension View {
         if #available(iOS 16.0, *) {
             self.scrollContentBackground(.hidden)
         } else {
-            self.onAppear {
+            onAppear {
                 UITableView.appearance().backgroundColor = .clear
             }
         }
