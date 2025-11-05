@@ -72,15 +72,13 @@ struct TileToggleStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
         Button(action: { configuration.isOn.toggle() }) {
             HStack(spacing: 12) {
-                configuration.label
-                    .foregroundColor(AppTheme.tileText)
-                    .font(.body)
-
-                Spacer(minLength: 8)
-
                 Image(systemName: configuration.isOn ? "checkmark.circle.fill" : "circle")
                     .foregroundColor(AppTheme.tileText.opacity(configuration.isOn ? 1 : 0.35))
                     .imageScale(.large)
+
+                configuration.label
+                    .foregroundColor(AppTheme.tileText)
+                    .font(.body)
             }
             .contentShape(Rectangle())
         }
@@ -94,6 +92,17 @@ extension View {
     func listRowSeparatorHiddenCompat() -> some View {
         if #available(iOS 15.0, *) {
             self.listRowSeparator(.hidden)
+        } else {
+            self
+        }
+    }
+}
+
+extension View {
+    @ViewBuilder
+    func listRowSpacingCompat(_ value: CGFloat) -> some View {
+        if #available(iOS 16.0, *) {
+            self.listRowSpacing(value)
         } else {
             self
         }
