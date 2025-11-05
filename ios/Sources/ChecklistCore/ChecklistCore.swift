@@ -16,4 +16,3 @@ public struct ChecklistEngine {
         return lines.joined(separator: "\n")
     }
 }
-

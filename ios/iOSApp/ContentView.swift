@@ -27,14 +27,14 @@ struct ContentView: View {
                                 ForEach(store.lists) { list in
                                     NavigationLink(destination: ChecklistDetailView(store: store, listID: list.id)) {
                                         VStack(alignment: .leading, spacing: 8) {
-                                        Text(list.name)
+                                            Text(list.name)
                                                 .font(.system(size: 16, weight: .regular))
                                                 .foregroundColor(AppTheme.tileText)
                                                 .lineLimit(2)
                                                 .minimumScaleFactor(0.8)
 
                                             let total = list.fields.count
-                                            let done = list.fields.filter { $0.isChecked }.count
+                                            let done = list.fields.count(where: { $0.isChecked })
                                             Text("\(done)/\(total)")
                                                 .foregroundColor(.black.opacity(0.5))
                                                 .font(.caption)
