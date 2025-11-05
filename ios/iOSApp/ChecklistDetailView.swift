@@ -57,6 +57,7 @@ struct ChecklistDetailView: View {
                             ForEach(list.fields) { $field in
                                 if isEditing {
                                     TextField("Field name", text: $field.name)
+                                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                                 } else {
                                     Toggle(isOn: $field.isChecked) {
                                         Text(field.name)
@@ -64,6 +65,7 @@ struct ChecklistDetailView: View {
                                     .toggleStyle(TileToggleStyle())
                                     .listRowBackground(Color.clear)
                                     .listRowSeparatorHiddenCompat()
+                                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                                 }
                             }
                             .onDelete { offsets in
@@ -75,7 +77,9 @@ struct ChecklistDetailView: View {
                         }
                     }
                     .listStyle(.plain)
+                    .listRowSpacingCompat(8)
                     .scrollContentBackgroundHidden()
+                    .padding(.top, 16)
                 }
                 .navigationTitle("")
                 .navigationBarTitleDisplayMode(.inline)
