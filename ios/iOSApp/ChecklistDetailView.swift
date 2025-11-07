@@ -103,20 +103,23 @@ struct ChecklistDetailView: View {
                             .font(.system(size: 22, weight: .regular))
                             .foregroundColor(.black)
                     }
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button(action: {
-                            editMode = isEditing ? .inactive : .active
-                        }) {
-                            Text(isEditing ? "Done" : "Edit")
-                                .foregroundColor(AppTheme.navItemColor)
-                        }
-                    }
                     ToolbarItem(placement: .navigationBarTrailing) {
                         let done = checkedCount
                         let total = list.wrappedValue.fields.count
                         Text("\(done)/\(total)")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
+                    }
+                    // Pencil icon button on trailing side (rightmost)
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(action: {
+                            editMode = isEditing ? .inactive : .active
+                        }) {
+                            Image(systemName: "pencil")
+                                .foregroundColor(.black)
+                                .imageScale(.medium)
+                                .accessibilityLabel(isEditing ? "Done" : "Edit")
+                        }
                     }
                 }
                 .alert(isPresented: Binding(get: { !isEditing && showCompletedAlert }, set: { showCompletedAlert = $0 })) {
