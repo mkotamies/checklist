@@ -40,29 +40,26 @@ struct ChecklistDetailView: View {
                         .ignoresSafeArea()
 
                     List {
-                        if isEditing {
-                            Section(header: Text("List Name")) {
-                                TextField("Name", text: list.name)
-                            }
-                        }
-
                         Section {
-                            // Quick add row at the very top (same section as items to keep spacing consistent)
-                            HStack(spacing: 12) {
-                                Image(systemName: "plus.circle")
-                                    .foregroundColor(AppTheme.tileText.opacity(0.35))
-                                    .imageScale(.large)
-                                FocusableTextField(
-                                    text: $newFieldName,
-                                    isFirstResponder: true,
-                                    placeholder: "Add new item",
-                                    onCommit: addField,
-                                )
+                            // Hide quick add row while editing
+                            if !isEditing {
+                                // Quick add row at the very top (same section as items to keep spacing consistent)
+                                HStack(spacing: 12) {
+                                    Image(systemName: "plus.circle")
+                                        .foregroundColor(AppTheme.tileText.opacity(0.35))
+                                        .imageScale(.large)
+                                    FocusableTextField(
+                                        text: $newFieldName,
+                                        isFirstResponder: true,
+                                        placeholder: "Add new item",
+                                        onCommit: addField,
+                                    )
+                                }
+                                .tileStyle()
+                                .listRowBackground(Color.clear)
+                                .listRowSeparatorHiddenCompat()
+                                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                             }
-                            .tileStyle()
-                            .listRowBackground(Color.clear)
-                            .listRowSeparatorHiddenCompat()
-                            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
 
                             ForEach(list.fields) { $field in
                                 if isEditing {
@@ -99,9 +96,16 @@ struct ChecklistDetailView: View {
                 .accentColor(AppTheme.navItemColor)
                 .toolbar {
                     ToolbarItem(placement: .principal) {
-                        Text(list.wrappedValue.name)
-                            .font(.system(size: 22, weight: .regular))
-                            .foregroundColor(.black)
+                        if isEditing {
+                            TextField("Name", text: list.name)
+                                .font(.system(size: 22, weight: .regular))
+                                .multilineTextAlignment(.center)
+                                .foregroundColor(.black)
+                        } else {
+                            Text(list.wrappedValue.name)
+                                .font(.system(size: 22, weight: .regular))
+                                .foregroundColor(.black)
+                        }
                     }
                     ToolbarItem(placement: .navigationBarTrailing) {
                         let done = checkedCount
