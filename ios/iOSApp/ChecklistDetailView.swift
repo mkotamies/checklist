@@ -63,8 +63,24 @@ struct ChecklistDetailView: View {
 
                             ForEach(list.fields) { $field in
                                 if isEditing {
-                                    FocusableTextField(text: $field.name, isFirstResponder: false, placeholder: "Field name")
-                                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                                    HStack(spacing: 12) {
+                                        FocusableTextField(
+                                            text: $field.name,
+                                            isFirstResponder: false,
+                                            placeholder: "Field name",
+                                        )
+                                    }
+                                    .padding(.vertical, 14)
+                                    .padding(.horizontal, 16)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .foregroundColor(AppTheme.tileText)
+                                    .listRowBackground(
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .fill(AppTheme.tileBackground)
+                                            .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 3),
+                                    )
+                                    .listRowSeparatorHiddenCompat()
+                                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                                 } else {
                                     Toggle(isOn: $field.isChecked) {
                                         Text(field.name)
@@ -89,6 +105,7 @@ struct ChecklistDetailView: View {
                     .simultaneousGesture(TapGesture().onEnded { dismissKeyboard() })
                     .gesture(DragGesture().onChanged { _ in dismissKeyboard() })
                     .padding(.top, 16)
+                    .padding(.horizontal, isEditing ? 16 : 0)
                 }
                 .navigationTitle("")
                 .navigationBarTitleDisplayMode(.inline)
