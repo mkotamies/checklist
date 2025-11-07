@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ChecklistDetailView: View {
     @ObservedObject var store: ChecklistStore
@@ -43,20 +44,29 @@ struct ChecklistDetailView: View {
                             Section(header: Text("List Name")) {
                                 TextField("Name", text: list.name)
                             }
-                            Section(header: Text("Add Field")) {
-                                HStack {
-                                    TextField("New field name", text: $newFieldName, onCommit: addField)
-                                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                                    Button("Add", action: addField)
-                                        .disabled(newFieldName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                                }
-                            }
                         }
 
                         Section {
+                            // Quick add row at the very top (same section as items to keep spacing consistent)
+                            HStack(spacing: 12) {
+                                Image(systemName: "plus.circle")
+                                    .foregroundColor(AppTheme.tileText.opacity(0.35))
+                                    .imageScale(.large)
+                                FocusableTextField(
+                                    text: $newFieldName,
+                                    isFirstResponder: true,
+                                    placeholder: "Add new item",
+                                    onCommit: addField,
+                                )
+                            }
+                            .tileStyle()
+                            .listRowBackground(Color.clear)
+                            .listRowSeparatorHiddenCompat()
+                            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+
                             ForEach(list.fields) { $field in
                                 if isEditing {
-                                    TextField("Field name", text: $field.name)
+                                    FocusableTextField(text: $field.name, isFirstResponder: false, placeholder: "Field name")
                                         .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                                 } else {
                                     Toggle(isOn: $field.isChecked) {
@@ -79,6 +89,8 @@ struct ChecklistDetailView: View {
                     .listStyle(.plain)
                     .listRowSpacingCompat(8)
                     .scrollContentBackgroundHidden()
+                    .simultaneousGesture(TapGesture().onEnded { dismissKeyboard() })
+                    .gesture(DragGesture().onChanged { _ in dismissKeyboard() })
                     .padding(.top, 16)
                 }
                 .navigationTitle("")
@@ -136,7 +148,66 @@ struct ChecklistDetailView: View {
         guard let idx = checklistIndex else { return }
         let name = newFieldName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return }
-        store.lists[idx].fields.append(Field(name: name))
+        // Insert at top so new item appears right under the input row
+        store.lists[idx].fields.insert(Field(name: name), at: 0)
         newFieldName = ""
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+}
+
+// MARK: - FocusableTextField for iOS 14+
+
+private struct FocusableTextField: UIViewRepresentable {
+    class Coordinator: NSObject, UITextFieldDelegate {
+        var text: Binding<String>
+        var onCommit: (() -> Void)?
+        init(text: Binding<String>, onCommit: (() -> Void)?) {
+            self.text = text
+            self.onCommit = onCommit
+        }
+
+        func textFieldDidChangeSelection(_ textField: UITextField) {
+            text.wrappedValue = textField.text ?? ""
+        }
+
+        func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+            textField.resignFirstResponder()
+            onCommit?()
+            return true
+        }
+
+        func textFieldDidEndEditing(_: UITextField) {
+            onCommit?()
+        }
+    }
+
+    @Binding var text: String
+    var isFirstResponder: Bool
+    var placeholder: String = "Field name"
+    var onCommit: (() -> Void)?
+
+    func makeUIView(context: Context) -> UITextField {
+        let tf = UITextField(frame: .zero)
+        tf.delegate = context.coordinator
+        tf.placeholder = placeholder
+        tf.borderStyle = .none
+        tf.clearButtonMode = .whileEditing
+        tf.returnKeyType = .done
+        tf.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        return tf
+    }
+
+    func updateUIView(_ uiView: UITextField, context _: Context) {
+        if uiView.text != text { uiView.text = text }
+        if isFirstResponder, !uiView.isFirstResponder {
+            uiView.becomeFirstResponder()
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text, onCommit: onCommit)
     }
 }
