@@ -85,14 +85,14 @@ struct ChecklistDetailView: View {
                     Alert(title: Text("Checklist Completed"), message: Text("All items are checked."), dismissButton: .default(Text("OK")))
                 }
                 .onAppear { lastCheckedCount = checkedCount }
-                .onChange(of: checkedCount) { newCount in
+                .onChange(of: checkedCount) { _, newCount in
                     // Only show when not editing and the number of checked items increased
                     if !isEditing, allChecked, newCount > lastCheckedCount {
                         showCompletedAlert = true
                     }
                     lastCheckedCount = newCount
                 }
-                .onChange(of: isEditing) { editing in
+                .onChange(of: isEditing) { _, editing in
                     if editing { showCompletedAlert = false }
                 }
                 .environment(\.editMode, $editMode)
