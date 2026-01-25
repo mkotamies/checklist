@@ -14,12 +14,16 @@ struct ContentView: View {
     @State private var showingExportConfirmation = false
     @State private var showingImportError = false
     @State private var importErrorMessage = ""
+    @State private var isDeleteMode = false
 
     var body: some View {
         NavigationView {
             ZStack {
                 AppTheme.backgroundGradient
                     .ignoresSafeArea()
+                    .onTapGesture {
+                        isDeleteMode = false
+                    }
 
                 GeometryReader { proxy in
                     let spacing: CGFloat = 16
@@ -34,10 +38,33 @@ struct ContentView: View {
                             let columns = Array(repeating: GridItem(.fixed(itemSize), spacing: spacing, alignment: .top), count: columnsCount)
                             LazyVGrid(columns: columns, spacing: spacing) {
                                 ForEach(store.lists) { list in
-                                    NavigationLink(destination: ChecklistDetailView(store: store, listID: list.id)) {
-                                        ChecklistCardView(list: list, itemSize: itemSize)
+                                    ZStack(alignment: .topLeading) {
+                                        if isDeleteMode {
+                                            ChecklistCardView(list: list, itemSize: itemSize)
+                                        } else {
+                                            NavigationLink(destination: ChecklistDetailView(store: store, listID: list.id)) {
+                                                ChecklistCardView(list: list, itemSize: itemSize)
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+
+                                        if isDeleteMode {
+                                            Button {
+                                                store.deleteList(id: list.id)
+                                            } label: {
+                                                Image(systemName: "xmark.circle.fill")
+                                                    .font(.system(size: 22))
+                                                    .foregroundStyle(.white, Color(.darkGray))
+                                            }
+                                            .offset(x: -6, y: -6)
+                                        }
                                     }
-                                    .buttonStyle(.plain)
+                                    .simultaneousGesture(
+                                        LongPressGesture(minimumDuration: 0.5)
+                                            .onEnded { _ in
+                                                isDeleteMode = true
+                                            },
+                                    )
                                 }
                             }
                         }
