@@ -96,10 +96,7 @@ struct ChecklistDetailView: View {
                     if editing { showCompletedAlert = false }
                 }
                 .environment(\.editMode, $editMode)
-                .onAppear {
-                    UINavigationBar.appearance().tintColor = AppTheme.navItemUIColor
-                    UIBarButtonItem.appearance().tintColor = AppTheme.navItemUIColor
-                }
+
             } else {
                 Text("List not found").foregroundColor(.secondary)
             }
@@ -186,7 +183,7 @@ private struct QuickAddRow: View {
                 .imageScale(.large)
             FocusableTextField(
                 text: $text,
-                isFirstResponder: true,
+                isFirstResponder: false,
                 placeholder: "Add new item",
                 onCommit: onCommit,
             )
