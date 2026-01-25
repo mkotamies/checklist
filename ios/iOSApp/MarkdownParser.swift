@@ -22,9 +22,22 @@ enum MarkdownParser {
     /// - List items (-, *, +) become fields
     /// - Checkbox syntax ([ ] or [x]) is stripped
     /// - Items before first heading go into "Imported Checklist"
+    /// - Duplicate titles are made unique by appending a number
     static func parseMarkdown(_ text: String) -> [Checklist] {
         var checklists: [Checklist] = []
         var currentChecklist: Checklist? = nil
+        var usedNames: Set<String> = []
+
+        func uniqueName(for name: String) -> String {
+            var candidate = name
+            var counter = 2
+            while usedNames.contains(candidate) {
+                candidate = "\(name) \(counter)"
+                counter += 1
+            }
+            usedNames.insert(candidate)
+            return candidate
+        }
 
         for line in text.components(separatedBy: .newlines) {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -34,8 +47,9 @@ enum MarkdownParser {
                 if let current = currentChecklist {
                     checklists.append(current)
                 }
-                let name = String(trimmed.dropFirst(2)).trimmingCharacters(in: .whitespaces)
-                currentChecklist = Checklist(name: name.isEmpty ? "Imported Checklist" : name)
+                let rawName = String(trimmed.dropFirst(2)).trimmingCharacters(in: .whitespaces)
+                let name = uniqueName(for: rawName.isEmpty ? "Imported Checklist" : rawName)
+                currentChecklist = Checklist(name: name)
             } else if trimmed.hasPrefix("- ") || trimmed.hasPrefix("* ") || trimmed.hasPrefix("+ ") {
                 // Support all markdown bullet styles: -, *, +
                 var itemText = String(trimmed.dropFirst(2))
@@ -52,7 +66,8 @@ enum MarkdownParser {
                 if !itemText.isEmpty {
                     // Create default checklist if none exists
                     if currentChecklist == nil {
-                        currentChecklist = Checklist(name: "Imported Checklist")
+                        let name = uniqueName(for: "Imported Checklist")
+                        currentChecklist = Checklist(name: name)
                     }
                     currentChecklist?.fields.append(Field(name: itemText))
                 }
