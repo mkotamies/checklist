@@ -40,12 +40,6 @@ struct ChecklistDetailView: View {
                     newFieldName: $newFieldName,
                     isEditing: isEditing,
                     addField: addField,
-                    onDelete: { offsets in
-                        list.wrappedValue.fields.remove(atOffsets: offsets)
-                    },
-                    onMove: { from, to in
-                        list.wrappedValue.fields.move(fromOffsets: from, toOffset: to)
-                    },
                     dismissKeyboard: { dismissKeyboard() },
                 )
                 .navigationTitle("")
@@ -211,9 +205,13 @@ private struct ChecklistListView: View {
     @Binding var newFieldName: String
     var isEditing: Bool
     var addField: () -> Void
-    var onDelete: (IndexSet) -> Void
-    var onMove: (IndexSet, Int) -> Void
     var dismissKeyboard: () -> Void
+
+    private func deleteField(id: UUID) {
+        if let idx = list.fields.firstIndex(where: { $0.id == id }) {
+            list.fields.remove(at: idx)
+        }
+    }
 
     var body: some View {
         ZStack {
@@ -226,22 +224,19 @@ private struct ChecklistListView: View {
                 }
 
                 ForEach($list.fields) { $field in
+                    let fieldID = $field.wrappedValue.id
                     if isEditing {
                         EditingFieldRow(
                             field: $field,
-                            onDelete: {
-                                let id = $field.wrappedValue.id
-                                if let idx = list.fields.firstIndex(where: { $0.id == id }) {
-                                    list.fields.remove(at: idx)
-                                }
-                            },
+                            onDelete: { deleteField(id: fieldID) },
                         )
                     } else {
                         DisplayFieldRow(field: $field)
                     }
                 }
-                .onDelete(perform: onDelete)
-                .onMove(perform: onMove)
+                .onMove { from, to in
+                    list.fields.move(fromOffsets: from, toOffset: to)
+                }
             }
             .listStyle(.plain)
             .listRowSpacingCompat(8)
