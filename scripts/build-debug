@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# scripts/build-debug
+
+# Build ChecklistApp Xcode project in Debug configuration
+# Usage: ./scripts/build-debug
+
+# Note on code signing:
+# This script supports optional code signing for local/CI simulator builds.
+# By default, signing is DISABLED to avoid requiring a Development Team.
+# Control via env var:
+#   - Disable signing (default): DISABLE_CODE_SIGNING=1
+#   - Enable signing:            DISABLE_CODE_SIGNING=0
+# To fully re-enable signing, set a team in Xcode Signing & Capabilities
+# or pass DEVELOPMENT_TEAM=<TeamID> to xcodebuild.
+
+set -euo pipefail
+
+# Configuration variables
+project_name="ios/ChecklistApp.xcodeproj"
+scheme_name="ChecklistApp"
+configuration="Debug"
+
+# Change to project root directory
+project_dir=$(git rev-parse --show-toplevel)
+cd "$project_dir" || exit 1
+
+# Verify Xcode project exists
+if [[ ! -d "$project_name" ]]; then
+	echo "Error: Xcode project '$project_name' not found in current directory" >&2
+	exit 1
+fi
+
+echo "Building $scheme_name scheme in $configuration configuration..."
+
+# Run xcodebuild with error capture (-quiet suppresses most output except warnings/errors)
+DISABLE_CODE_SIGNING=${DISABLE_CODE_SIGNING:-1}
+if [[ "$DISABLE_CODE_SIGNING" =~ ^(1|true|TRUE|yes|YES)$ ]]; then
+  CS_FLAG=(CODE_SIGNING_ALLOWED=NO)
+else
+  CS_FLAG=()
+fi
+
+if xcodebuild \
+  -project "$project_name" \
+  -scheme "$scheme_name" \
+  -configuration "$configuration" \
+  -sdk iphonesimulator \
+  "${CS_FLAG[@]}" \
+  -quiet build 2>&1; then
+	echo "Build completed successfully"
+	exit 0
+else
+	build_exit_code=$?
+	echo "Build failed with exit code $build_exit_code" >&2
+	exit $build_exit_code
+fi
