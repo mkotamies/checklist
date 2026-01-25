@@ -21,9 +21,6 @@ struct ContentView: View {
             ZStack {
                 AppTheme.backgroundGradient
                     .ignoresSafeArea()
-                    .onTapGesture {
-                        isDeleteMode = false
-                    }
 
                 GeometryReader { proxy in
                     let spacing: CGFloat = 16
@@ -70,6 +67,11 @@ struct ContentView: View {
                         }
                         .padding(.horizontal, spacing)
                         .padding(.vertical, spacing)
+                        .frame(minHeight: proxy.size.height, alignment: .top)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            isDeleteMode = false
+                        }
                     }
                 }
             }
