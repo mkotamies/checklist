@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# scripts/dev
+#
+# Boot simulator, build app, install and launch it
+# Usage: ./scripts/dev [simulator_name]
+
+set -euo pipefail
+
+# Configuration
+PROJECT="ios/ChecklistApp.xcodeproj"
+SCHEME="ChecklistApp"
+BUNDLE_ID="com.mkotamies.checklistapp"
+SIMULATOR_NAME="${1:-iPhone 16 Pro}"
+
+# Change to project root
+PROJECT_DIR=$(git rev-parse --show-toplevel)
+cd "$PROJECT_DIR" || exit 1
+
+# Boot simulator if not already booted
+if ! xcrun simctl list devices booted | grep -q "$SIMULATOR_NAME"; then
+    echo "Booting $SIMULATOR_NAME..."
+    xcrun simctl boot "$SIMULATOR_NAME" 2>/dev/null || true
+fi
+
+# Open Simulator app
+open -a Simulator
+
+# Build the app
+echo "Building $SCHEME..."
+DISABLE_CODE_SIGNING=${DISABLE_CODE_SIGNING:-1}
+if [[ "$DISABLE_CODE_SIGNING" =~ ^(1|true|TRUE|yes|YES)$ ]]; then
+    CS_FLAG=(CODE_SIGNING_ALLOWED=NO)
+else
+    CS_FLAG=()
+fi
+
+# Build and capture the build directory
+BUILD_DIR=$(xcodebuild \
+    -project "$PROJECT" \
+    -scheme "$SCHEME" \
+    -configuration Debug \
+    -sdk iphonesimulator \
+    -destination "platform=iOS Simulator,name=$SIMULATOR_NAME" \
+    "${CS_FLAG[@]}" \
+    -showBuildSettings 2>/dev/null | grep -m1 'BUILT_PRODUCTS_DIR' | awk '{print $3}')
+
+xcodebuild \
+    -project "$PROJECT" \
+    -scheme "$SCHEME" \
+    -configuration Debug \
+    -sdk iphonesimulator \
+    -destination "platform=iOS Simulator,name=$SIMULATOR_NAME" \
+    "${CS_FLAG[@]}" \
+    -quiet build
+
+APP_PATH="$BUILD_DIR/$SCHEME.app"
+
+if [[ ! -d "$APP_PATH" ]]; then
+    echo "Error: Built app not found at $APP_PATH" >&2
+    exit 1
+fi
+
+echo "Installing app..."
+xcrun simctl install booted "$APP_PATH"
+
+echo "Launching app..."
+xcrun simctl launch booted "$BUNDLE_ID"
+
+echo "Done! App is running in simulator."

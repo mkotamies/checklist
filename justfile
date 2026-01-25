@@ -12,3 +12,7 @@ format:
 # Build the project
 build:
     ./scripts/build-debug
+
+# Open simulator, build and run the app
+dev simulator="iPhone 16 Pro":
+    ./scripts/dev "{{simulator}}"
