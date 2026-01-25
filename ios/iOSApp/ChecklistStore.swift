@@ -42,6 +42,10 @@ final class ChecklistStore: ObservableObject {
         lists.move(fromOffsets: source, toOffset: destination)
     }
 
+    func deleteList(id: UUID) {
+        lists.removeAll { $0.id == id }
+    }
+
     // MARK: - Persistence
 
     func load() {
