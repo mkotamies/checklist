@@ -35,78 +35,19 @@ struct ChecklistDetailView: View {
     var body: some View {
         Group {
             if let list = listBinding {
-                ZStack {
-                    AppTheme.backgroundGradient
-                        .ignoresSafeArea()
-
-                    List {
-                        Section {
-                            // Hide quick add row while editing
-                            if !isEditing {
-                                // Quick add row at the very top (same section as items to keep spacing consistent)
-                                HStack(spacing: 12) {
-                                    Image(systemName: "plus.circle")
-                                        .foregroundColor(AppTheme.tileText.opacity(0.35))
-                                        .imageScale(.large)
-                                    FocusableTextField(
-                                        text: $newFieldName,
-                                        isFirstResponder: true,
-                                        placeholder: "Add new item",
-                                        onCommit: addField,
-                                    )
-                                }
-                                .tileStyle()
-                                .listRowBackground(Color.clear)
-                                .listRowSeparatorHiddenCompat()
-                                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                            }
-
-                            ForEach(list.fields) { $field in
-                                if isEditing {
-                                    HStack(spacing: 12) {
-                                        FocusableTextField(
-                                            text: $field.name,
-                                            isFirstResponder: false,
-                                            placeholder: "Field name",
-                                        )
-                                    }
-                                    .padding(.vertical, 14)
-                                    .padding(.horizontal, 16)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .foregroundColor(AppTheme.tileText)
-                                    .listRowBackground(
-                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                            .fill(AppTheme.tileBackground)
-                                            .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 3),
-                                    )
-                                    .listRowSeparatorHiddenCompat()
-                                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                                } else {
-                                    Toggle(isOn: $field.isChecked) {
-                                        Text(field.name)
-                                    }
-                                    .toggleStyle(TileToggleStyle())
-                                    .listRowBackground(Color.clear)
-                                    .listRowSeparatorHiddenCompat()
-                                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                                }
-                            }
-                            .onDelete { offsets in
-                                list.wrappedValue.fields.remove(atOffsets: offsets)
-                            }
-                            .onMove { from, to in
-                                list.wrappedValue.fields.move(fromOffsets: from, toOffset: to)
-                            }
-                        }
-                    }
-                    .listStyle(.plain)
-                    .listRowSpacingCompat(8)
-                    .scrollContentBackgroundHidden()
-                    .simultaneousGesture(TapGesture().onEnded { dismissKeyboard() })
-                    .gesture(DragGesture().onChanged { _ in dismissKeyboard() })
-                    .padding(.top, 16)
-                    .padding(.horizontal, isEditing ? 16 : 0)
-                }
+                ChecklistListView(
+                    list: list,
+                    newFieldName: $newFieldName,
+                    isEditing: isEditing,
+                    addField: addField,
+                    onDelete: { offsets in
+                        list.wrappedValue.fields.remove(atOffsets: offsets)
+                    },
+                    onMove: { from, to in
+                        list.wrappedValue.fields.move(fromOffsets: from, toOffset: to)
+                    },
+                    dismissKeyboard: { dismissKeyboard() },
+                )
                 .navigationTitle("")
                 .navigationBarTitleDisplayMode(.inline)
                 .tintIfAvailable(AppTheme.navItemColor)
@@ -134,9 +75,12 @@ struct ChecklistDetailView: View {
                     // Pencil icon button on trailing side (rightmost)
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button(action: {
-                            editMode = isEditing ? .inactive : .active
+                            withAnimation(.default) {
+                                if isEditing { dismissKeyboard() }
+                                editMode = isEditing ? .inactive : .active
+                            }
                         }) {
-                            Image(systemName: "pencil")
+                            Image(systemName: isEditing ? "checkmark" : "pencil")
                                 .foregroundColor(.black)
                                 .imageScale(.medium)
                                 .accessibilityLabel(isEditing ? "Done" : "Edit")
@@ -183,6 +127,132 @@ struct ChecklistDetailView: View {
 }
 
 // MARK: - FocusableTextField for iOS 14+
+
+// MARK: - Extracted editing row to simplify type-checking
+
+private struct EditingFieldRow: View {
+    @Binding var field: Field
+    var onDelete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            FocusableTextField(
+                text: $field.name,
+                isFirstResponder: false,
+                placeholder: "Field name",
+            )
+            Spacer()
+            Button(action: onDelete) {
+                Image(systemName: "trash")
+                    .foregroundColor(.red)
+            }
+            .buttonStyle(BorderlessButtonStyle())
+            .accessibilityLabel("Delete")
+        }
+        .padding(.vertical, 14)
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .foregroundColor(AppTheme.tileText)
+        .listRowBackground(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(AppTheme.tileBackground)
+                .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 3),
+        )
+        .listRowSeparatorHiddenCompat()
+        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+    }
+}
+
+// MARK: - Display (non-editing) row
+
+private struct DisplayFieldRow: View {
+    @Binding var field: Field
+
+    var body: some View {
+        Toggle(isOn: $field.isChecked) {
+            Text(field.name)
+        }
+        .toggleStyle(TileToggleStyle())
+        .listRowBackground(Color.clear)
+        .listRowSeparatorHiddenCompat()
+        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+    }
+}
+
+// MARK: - Quick add row
+
+private struct QuickAddRow: View {
+    @Binding var text: String
+    var onCommit: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "plus.circle")
+                .foregroundColor(AppTheme.tileText.opacity(0.35))
+                .imageScale(.large)
+            FocusableTextField(
+                text: $text,
+                isFirstResponder: true,
+                placeholder: "Add new item",
+                onCommit: onCommit,
+            )
+        }
+        .tileStyle()
+        .listRowBackground(Color.clear)
+        .listRowSeparatorHiddenCompat()
+        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+    }
+}
+
+// MARK: - Extracted list content to reduce body complexity
+
+private struct ChecklistListView: View {
+    @Binding var list: Checklist
+    @Binding var newFieldName: String
+    var isEditing: Bool
+    var addField: () -> Void
+    var onDelete: (IndexSet) -> Void
+    var onMove: (IndexSet, Int) -> Void
+    var dismissKeyboard: () -> Void
+
+    var body: some View {
+        ZStack {
+            AppTheme.backgroundGradient
+                .ignoresSafeArea()
+
+            List {
+                if !isEditing {
+                    QuickAddRow(text: $newFieldName, onCommit: addField)
+                }
+
+                ForEach($list.fields) { $field in
+                    if isEditing {
+                        EditingFieldRow(
+                            field: $field,
+                            onDelete: {
+                                let id = $field.wrappedValue.id
+                                if let idx = list.fields.firstIndex(where: { $0.id == id }) {
+                                    list.fields.remove(at: idx)
+                                }
+                            },
+                        )
+                    } else {
+                        DisplayFieldRow(field: $field)
+                    }
+                }
+                .onDelete(perform: onDelete)
+                .onMove(perform: onMove)
+            }
+            .listStyle(.plain)
+            .listRowSpacingCompat(8)
+            .scrollContentBackgroundHidden()
+            .simultaneousGesture(TapGesture().onEnded { dismissKeyboard() })
+            .gesture(DragGesture().onChanged { _ in dismissKeyboard() })
+            .padding(.top, 16)
+            .padding(.horizontal, isEditing ? 16 : 0)
+        }
+    }
+}
 
 private struct FocusableTextField: UIViewRepresentable {
     class Coordinator: NSObject, UITextFieldDelegate {
