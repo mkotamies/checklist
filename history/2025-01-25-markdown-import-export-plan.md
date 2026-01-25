@@ -4,6 +4,13 @@
 
 **Approach:** Create a `MarkdownParser.swift` file with parsing/formatting functions, add `ImportPreviewView.swift` for the import confirmation sheet, then modify `ContentView.swift` to add toolbar buttons and wire up the flows.
 
+**Import Behavior (Upsert):** Import uses upsert logic by checklist name:
+- If a checklist with the same name exists, it is **replaced** with the imported version
+- If no matching checklist exists, it is **added** as new
+- Existing checklists not in the import are **preserved** (not deleted)
+
+This enables the "edit via LLM" workflow: export → paste to LLM → get modified markdown → import back without creating duplicates.
+
 ---
 
 ### Task 1: Create MarkdownParser.swift
@@ -42,8 +49,8 @@ enum MarkdownParser {
 
     /// Parses markdown into checklists
     /// - Headings (# ) become checklist names
-    /// - List items (- ) become fields
-    /// - Checkbox syntax (- [ ] or - [x]) is stripped
+    /// - List items (-, *, +) become fields
+    /// - Checkbox syntax ([ ] or [x]) is stripped
     /// - Items before first heading go into "Imported Checklist"
     static func parseMarkdown(_ text: String) -> [Checklist] {
         var checklists: [Checklist] = []
@@ -54,15 +61,16 @@ enum MarkdownParser {
 
             if trimmed.hasPrefix("# ") {
                 // Save previous checklist if exists
-                if let current = currentChecklist, !current.fields.isEmpty {
+                if let current = currentChecklist {
                     checklists.append(current)
                 }
                 let name = String(trimmed.dropFirst(2)).trimmingCharacters(in: .whitespaces)
                 currentChecklist = Checklist(name: name.isEmpty ? "Imported Checklist" : name)
-            } else if trimmed.hasPrefix("- ") {
+            } else if trimmed.hasPrefix("- ") || trimmed.hasPrefix("* ") || trimmed.hasPrefix("+ ") {
+                // Support all markdown bullet styles: -, *, +
                 var itemText = String(trimmed.dropFirst(2))
 
-                // Strip checkbox syntax: [ ] or [x]
+                // Strip checkbox syntax: [ ] or [x] or [X]
                 if itemText.hasPrefix("[ ] ") {
                     itemText = String(itemText.dropFirst(4))
                 } else if itemText.hasPrefix("[x] ") || itemText.hasPrefix("[X] ") {
@@ -82,7 +90,7 @@ enum MarkdownParser {
         }
 
         // Don't forget the last checklist
-        if let current = currentChecklist, !current.fields.isEmpty {
+        if let current = currentChecklist {
             checklists.append(current)
         }
 
@@ -102,7 +110,7 @@ enum MarkdownParser {
 **Steps:**
 
 1. Create SwiftUI sheet that displays parsed checklists
-2. Show checklist name and item count for each
+2. Show checklist name, item count, and whether it will update or add
 3. Add Import and Cancel buttons
 
 **Code:**
@@ -112,11 +120,12 @@ import SwiftUI
 
 struct ImportPreviewView: View {
     let checklists: [Checklist]
+    let existingNames: Set<String>
     let onImport: () -> Void
     let onCancel: () -> Void
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
                 Section {
                     ForEach(checklists) { checklist in
@@ -124,6 +133,23 @@ struct ImportPreviewView: View {
                             Text(checklist.name)
                                 .fontWeight(.medium)
                             Spacer()
+                            if existingNames.contains(checklist.name) {
+                                Text("update")
+                                    .font(.caption)
+                                    .foregroundColor(.orange)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.orange.opacity(0.15))
+                                    .cornerRadius(4)
+                            } else {
+                                Text("new")
+                                    .font(.caption)
+                                    .foregroundColor(.green)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.green.opacity(0.15))
+                                    .cornerRadius(4)
+                            }
                             Text("\(checklist.fields.count) items")
                                 .foregroundColor(.secondary)
                         }
@@ -175,16 +201,16 @@ Add after line 7 (`@State private var newListName: String = ""`):
 
 ---
 
-### Task 4: Add toolbar buttons for Import/Export
+### Task 4: Add toolbar menu for Import/Export
 
 **Files:**
 
-- Modify: `ios/iOSApp/ContentView.swift` (lines 82-87)
+- Modify: `ios/iOSApp/ContentView.swift` (lines 76-88)
 
 **Steps:**
 
-1. Add Import button (leading position)
-2. Add Export button (trailing position, before plus button)
+1. Add ellipsis menu containing Import and Export actions
+2. Keep plus button in trailing position
 
 **Code:**
 
@@ -197,18 +223,19 @@ Replace the existing toolbar (lines 76-88) with:
             .font(.system(size: 22, weight: .regular))
             .foregroundColor(.black)
     }
-    ToolbarItem(placement: .navigationBarLeading) {
-        Button(action: importFromClipboard) {
-            Image(systemName: "square.and.arrow.down")
-                .foregroundColor(.black)
-        }
-    }
     ToolbarItemGroup(placement: .navigationBarTrailing) {
-        Button(action: exportToClipboard) {
-            Image(systemName: "square.and.arrow.up")
+        Menu {
+            Button(action: importFromClipboard) {
+                Label("Import from Clipboard", systemImage: "square.and.arrow.down")
+            }
+            Button(action: exportToClipboard) {
+                Label("Export to Clipboard", systemImage: "square.and.arrow.up")
+            }
+            .disabled(store.lists.isEmpty)
+        } label: {
+            Image(systemName: "ellipsis.circle")
                 .foregroundColor(.black)
         }
-        .disabled(store.lists.isEmpty)
 
         Button(action: { showingNewListSheet = true }) {
             Image(systemName: "plus")
@@ -261,7 +288,14 @@ private func importFromClipboard() {
 }
 
 private func confirmImport() {
-    store.lists.append(contentsOf: checklistsToImport)
+    // Upsert: update existing lists by name, add new ones
+    for imported in checklistsToImport {
+        if let existingIndex = store.lists.firstIndex(where: { $0.name == imported.name }) {
+            store.lists[existingIndex] = imported
+        } else {
+            store.lists.append(imported)
+        }
+    }
     checklistsToImport = []
     showingImportPreview = false
 }
@@ -289,6 +323,7 @@ Add after the existing `.sheet(isPresented: $showingNewListSheet)` block (after 
 .sheet(isPresented: $showingImportPreview) {
     ImportPreviewView(
         checklists: checklistsToImport,
+        existingNames: Set(store.lists.map { $0.name }),
         onImport: confirmImport,
         onCancel: {
             checklistsToImport = []
@@ -317,11 +352,19 @@ Add after the existing `.sheet(isPresented: $showingNewListSheet)` block (after 
 1. Build the app: `just build` or run from Xcode
 2. Test export: Create a checklist with items, tap export, paste in Notes to verify markdown format
 3. Test import: Copy markdown text (e.g., `# Test\n\n- Item 1\n- Item 2`), tap import, verify preview, confirm
-4. Test edge cases:
+4. Test upsert behavior:
+   - Create "Groceries" with items, export
+   - Add/modify items in the markdown, re-import
+   - Verify "Groceries" shows "update" badge in preview
+   - Confirm import replaces the list (not duplicates)
+   - Verify other existing lists are preserved
+5. Test edge cases:
    - Export with no checklists (button should be disabled)
    - Import with empty clipboard (should show error)
    - Import non-markdown text (should show "no items found" error)
    - Import markdown with checkbox syntax (`- [x] item`)
+   - Import markdown with `*` or `+` bullets
+   - Import empty checklist header (should still create it)
 
 ---
 

@@ -1,10 +1,19 @@
 import SwiftUI
 import UIKit
 
+struct ImportData: Identifiable {
+    let id = UUID()
+    let checklists: [Checklist]
+}
+
 struct ContentView: View {
     @StateObject private var store = ChecklistStore()
     @State private var showingNewListSheet = false
     @State private var newListName: String = ""
+    @State private var importData: ImportData?
+    @State private var showingExportConfirmation = false
+    @State private var showingImportError = false
+    @State private var importErrorMessage = ""
 
     var body: some View {
         NavigationView {
@@ -26,41 +35,7 @@ struct ContentView: View {
                             LazyVGrid(columns: columns, spacing: spacing) {
                                 ForEach(store.lists) { list in
                                     NavigationLink(destination: ChecklistDetailView(store: store, listID: list.id)) {
-                                        VStack(alignment: .leading, spacing: 6) {
-                                            Text(list.name)
-                                                .font(.system(size: 16, weight: .semibold))
-                                                .foregroundColor(AppTheme.tileText)
-                                                .lineLimit(2)
-                                                .minimumScaleFactor(0.8)
-
-                                            // Item preview
-                                            let previewItems = Array(list.fields.prefix(5))
-                                            ForEach(previewItems) { field in
-                                                HStack(spacing: 6) {
-                                                    Image(systemName: field.isChecked ? "checkmark.circle.fill" : "circle")
-                                                        .font(.system(size: 12))
-                                                        .foregroundColor(AppTheme.tileText.opacity(field.isChecked ? 1 : 0.35))
-                                                    Text(field.name)
-                                                        .font(.system(size: 12))
-                                                        .foregroundColor(AppTheme.tileText.opacity(0.7))
-                                                        .lineLimit(1)
-                                                }
-                                            }
-
-                                            Spacer()
-
-                                            // Progress count
-                                            let total = list.fields.count
-                                            let done = list.fields.count(where: { $0.isChecked })
-                                            Text("\(done)/\(total)")
-                                                .foregroundColor(AppTheme.tileText.opacity(0.5))
-                                                .font(.caption)
-                                        }
-                                        .padding(12)
-                                        .frame(width: itemSize, height: itemSize, alignment: .topLeading)
-                                        .background(AppTheme.tileBackground)
-                                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                                        .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 3)
+                                        ChecklistCardView(list: list, itemSize: itemSize)
                                     }
                                     .buttonStyle(.plain)
                                 }
@@ -73,19 +48,7 @@ struct ContentView: View {
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text("My Checklists")
-                        .font(.system(size: 22, weight: .regular))
-                        .foregroundColor(.black)
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingNewListSheet = true }) {
-                        Image(systemName: "plus")
-                            .foregroundColor(.black)
-                    }
-                }
-            }
+            .toolbar(content: mainToolbarContent)
             .sheet(isPresented: $showingNewListSheet) {
                 NavigationView {
                     Form {
@@ -94,16 +57,72 @@ struct ContentView: View {
                         }
                     }
                     .navigationTitle("New Checklist")
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Cancel") { showingNewListSheet = false; newListName = "" }
-                        }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Create") { createList() }
-                                .disabled(newListName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        }
-                    }
+                    .toolbar(content: newListToolbarContent)
                 }
+            }
+            .sheet(item: $importData) { data in
+                ImportPreviewView(
+                    checklists: data.checklists,
+                    existingNames: Set(store.lists.map(\.name)),
+                    onImport: confirmImport,
+                    onCancel: {
+                        importData = nil
+                    },
+                )
+            }
+            .alert(isPresented: $showingExportConfirmation) {
+                Alert(
+                    title: Text("Copied to Clipboard"),
+                    message: Text("Your checklists have been copied as markdown."),
+                    dismissButton: .default(Text("OK")),
+                )
+            }
+            .alert(isPresented: $showingImportError) {
+                Alert(
+                    title: Text("Import Failed"),
+                    message: Text(importErrorMessage),
+                    dismissButton: .default(Text("OK")),
+                )
+            }
+        }
+    }
+
+    @ToolbarContentBuilder
+    private func newListToolbarContent() -> some ToolbarContent {
+        ToolbarItem(placement: .cancellationAction) {
+            Button("Cancel") { showingNewListSheet = false; newListName = "" }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+            Button("Create") { createList() }
+                .disabled(newListName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+    }
+
+    @ToolbarContentBuilder
+    private func mainToolbarContent() -> some ToolbarContent {
+        ToolbarItem(placement: .principal) {
+            Text("My Checklists")
+                .font(.system(size: 22, weight: .regular))
+                .foregroundColor(.black)
+        }
+        ToolbarItem(placement: .navigationBarTrailing) {
+            Menu {
+                Button(action: importFromClipboard) {
+                    Label("Import from Clipboard", systemImage: "square.and.arrow.down")
+                }
+                Button(action: exportToClipboard) {
+                    Label("Export to Clipboard", systemImage: "square.and.arrow.up")
+                }
+                .disabled(store.lists.isEmpty)
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .foregroundColor(.black)
+            }
+        }
+        ToolbarItem(placement: .navigationBarTrailing) {
+            Button(action: { showingNewListSheet = true }) {
+                Image(systemName: "plus")
+                    .foregroundColor(.black)
             }
         }
     }
@@ -112,6 +131,44 @@ struct ContentView: View {
         store.addList(name: newListName)
         newListName = ""
         showingNewListSheet = false
+    }
+
+    private func exportToClipboard() {
+        let markdown = MarkdownParser.formatMarkdown(store.lists)
+        UIPasteboard.general.string = markdown
+        showingExportConfirmation = true
+    }
+
+    private func importFromClipboard() {
+        guard let text = UIPasteboard.general.string, !text.isEmpty else {
+            importErrorMessage = "Clipboard is empty"
+            showingImportError = true
+            return
+        }
+
+        let parsed = MarkdownParser.parseMarkdown(text)
+        if parsed.isEmpty {
+            importErrorMessage = "No checklist items found in clipboard"
+            showingImportError = true
+            return
+        }
+
+        // Setting importData triggers the sheet with the data directly passed
+        importData = ImportData(checklists: parsed)
+    }
+
+    private func confirmImport() {
+        guard let data = importData else { return }
+
+        // Upsert: update existing lists by name, add new ones
+        for imported in data.checklists {
+            if let existingIndex = store.lists.firstIndex(where: { $0.name == imported.name }) {
+                store.lists[existingIndex] = imported
+            } else {
+                store.lists.append(imported)
+            }
+        }
+        importData = nil
     }
 }
 
