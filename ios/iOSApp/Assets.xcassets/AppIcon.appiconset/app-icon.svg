@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="#D3EDDB"/>
+
+  <!-- Suitcase body -->
+  <rect x="212" y="340" width="600" height="440" rx="48" fill="#2D5A45"/>
+
+  <!-- Suitcase handle -->
+  <rect x="412" y="240" width="200" height="100" rx="24" fill="none" stroke="#2D5A45" stroke-width="40"/>
+
+  <!-- Suitcase horizontal straps -->
+  <rect x="212" y="480" width="600" height="32" fill="#1F3D2E"/>
+  <rect x="212" y="600" width="600" height="32" fill="#1F3D2E"/>
+
+  <!-- Stamp circle with white border for visibility -->
+  <circle cx="740" cy="700" r="120" fill="#D3EDDB" stroke="#2D5A45" stroke-width="16"/>
+
+  <!-- Checkmark in stamp -->
+  <path d="M680 700 L720 750 L800 650" fill="none" stroke="#2D5A45" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
